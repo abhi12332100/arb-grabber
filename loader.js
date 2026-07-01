@@ -1,233 +1,293 @@
 // ═══════════════════════════════════════
-// ARB GRABBER — Complete Code
+// ARB GRABBER — loader.js
 // ═══════════════════════════════════════
 
 (function(){
-  const USER_KEY = 'abhi';
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxX-MEo72dkEC0Gl35yojkREMEx49IWlXajFynWGbLKXsK2kR0GzpQ-NZA-hlg5uGjE/exec';
-  const STORAGE_KEY = 'arb_g';
-  const EXPIRY_KEY = 'arb_e';
-  const EXPIRY_HOURS = 24;
-  
-  // ─── GRABBED ORDERS ───
-  function getGrabbed(){
+  const a = 'abhi';
+  const b = 'https://script.google.com/macros/s/AKfycbxX-MEo72dkEC0Gl35yojkREMEx49IWlXajFynWGbLKXsK2kR0GzpQ-NZA-hlg5uGjE/exec';
+  const c = 'arb_g';
+  const d = 'arb_e';
+  const e = 24;
+
+  function f(){
     try{
-      var e = localStorage.getItem(EXPIRY_KEY);
-      if(e && Date.now() > parseInt(e)){
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(EXPIRY_KEY);
+      var g = localStorage.getItem(d);
+      if(g && Date.now() > parseInt(g)){
+        localStorage.removeItem(c);
+        localStorage.removeItem(d);
         return new Set();
       }
-      var s = localStorage.getItem(STORAGE_KEY);
-      return s ? new Set(JSON.parse(s)) : new Set();
-    }catch(e){ return new Set(); }
+      var h = localStorage.getItem(c);
+      return h ? new Set(JSON.parse(h)) : new Set();
+    }catch(g){ return new Set(); }
   }
-  
-  function saveGrabbed(o){
+
+  function i(j){
     try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(o)));
-      localStorage.setItem(EXPIRY_KEY, String(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000));
-    }catch(e){}
+      localStorage.setItem(c, JSON.stringify(Array.from(j)));
+      localStorage.setItem(d, String(Date.now() + e * 60 * 60 * 1000));
+    }catch(g){}
   }
-  
-  let grabbedOrders = getGrabbed();
-  let config = null;
-  let f = false, g = false;
-  let pt = null;
-  
-  // ─── TOKEN ───
-  function getToken(){
+
+  let k = f();
+  let l = null;
+  let m = false, n = false;
+  let o = null;
+  let p = 'inst_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+  let q = null;
+  let r = {};
+  let s = null;
+
+  function t(){
     try{
-      var r = localStorage.getItem('token') || sessionStorage.getItem('token');
-      if(!r) return null;
-      if(r.trim().charAt(0) == '{'){
-        var p = JSON.parse(r);
-        return p.value || p.token || p.access_token || null;
+      q = new BroadcastChannel('arb_ch');
+      q.onmessage = function(u){
+        var v = u.data;
+        if(v && v.type){
+          if(v.type === 'hb'){
+            r[v.id] = { ts: Date.now(), stopped: v.stopped };
+          } else if(v.type === 'st'){
+            if(r[v.id]) r[v.id].stopped = true;
+          } else if(v.type === 'req'){
+            q.postMessage({ type: 'hb', id: p, stopped: n });
+          } else if(v.type === 'bye'){
+            delete r[v.id];
+          }
+        }
+      };
+      q.postMessage({ type: 'hb', id: p, stopped: false });
+      q.postMessage({ type: 'req' });
+      setInterval(function(){
+        var u = Date.now();
+        for(var w in r){
+          if(u - r[w].ts > 8000) delete r[w];
+        }
+        x();
+      }, 3000);
+      setInterval(function(){
+        if(!n) q.postMessage({ type: 'hb', id: p, stopped: false });
+      }, 2000);
+    }catch(u){}
+  }
+
+  function y(){
+    var u = 0;
+    for(var w in r){
+      if(!r[w].stopped) u++;
+    }
+    if(!n) u++;
+    return u;
+  }
+
+  function x(){
+    var u = document.getElementById('arb-cw');
+    if(!u) return;
+    var w = y();
+    var v = 0;
+    for(var z in r) v++;
+    if(!n) v++;
+    u.innerHTML = '<div style="font-size:22px;font-weight:bold;color:#0f0;">' + w + '</div><div style="font-size:11px;color:#888;">Running</div><div style="font-size:10px;color:#555;margin-top:2px;">Total:' + v + ' Stopped:' + (v - w) + '</div>';
+  }
+
+  function A(){
+    var u = document.getElementById('arb-cw');
+    if(u) return;
+    u = document.createElement('div');
+    u.id = 'arb-cw';
+    u.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#000;color:#0f0;padding:8px 16px;z-index:999999;font-family:monospace;border-radius:10px;font-size:13px;text-align:center;border:2px solid #0f0;min-width:80px;';
+    u.innerHTML = '<div style="font-size:22px;font-weight:bold;color:#0f0;">1</div><div style="font-size:11px;color:#888;">Running</div>';
+    document.body.appendChild(u);
+    setInterval(x, 1000);
+  }
+
+  function B(){
+    try{
+      var u = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if(!u) return null;
+      if(u.trim().charAt(0) == '{'){
+        var v = JSON.parse(u);
+        return v.value || v.token || v.access_token || null;
       }
-      return r;
-    }catch(e){ return null; }
+      return u;
+    }catch(u){ return null; }
   }
-  
-  // ─── UID ───
-  function fetchUID(){
-    var tk = getToken();
-    if(!tk) return Promise.resolve(null);
-    return fetch('https://apiweb.arbpay.me/ar-wallet/memberInformation/getCurrentMemberInfo',{
+
+  function C(){
+    var u = B();
+    if(!u) return Promise.resolve(null);
+    return fetch('https://apiweb.arbpay.me/ar-wallet/memberInformation/getCurrentMemberInfo', {
       method: 'GET',
-      headers: { 'Authorization': 'Bearer '+tk, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'Bearer ' + u, 'Content-Type': 'application/json' },
       credentials: 'include'
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if((d.code == '1' || d.code == 1) && d.data){
-        var uid = d.data.memberId || d.data.id || d.data.userId || d.data.uid || '';
-        return String(uid);
+    }).then(function(v){ return v.json(); }).then(function(v){
+      if((v.code == '1' || v.code == 1) && v.data){
+        var w = v.data.memberId || v.data.id || v.data.userId || v.data.uid || '';
+        return String(w);
       }
       return null;
     }).catch(function(){ return null; });
   }
-  
-  // ─── CONFIG ───
-  function loadConfig(){
-    return fetchUID().then(function(uid){
-      if(!uid) return { blocked: true, reason: 'no_uid', message: 'Login karo' };
-      var url = SCRIPT_URL + '?action=config&key=' + encodeURIComponent(USER_KEY) + '&userId=' + encodeURIComponent(uid);
-      return fetch(url).then(function(r){ return r.json(); }).then(function(d){
-        if(d.blocked || d.error || !d.status) return { blocked: true, reason: 'not_found', message: 'Config nahi mila' };
-        config = {
-          minAmount: Number(d.minAmount) || 0,
-          maxAmount: Number(d.maxAmount) || 0,
-          toggleInterval: Number(d.toggleInterval) || 100,
-          orderLimit: Number(d.orderLimit) || 12,
-          buyBankCode: d.buyBankCode || 'navi'
+
+  function D(){
+    return C().then(function(u){
+      if(!u) return { blocked: true, reason: 'no_uid', message: 'Login karo' };
+      var v = b + '?key=' + encodeURIComponent(a) + '&userId=' + encodeURIComponent(u);
+      return fetch(v).then(function(w){ return w.json(); }).then(function(w){
+        if(w.blocked || w.error || !w.status) return { blocked: true, reason: 'not_found', message: 'Config nahi mila' };
+        l = {
+          minAmount: Number(w.minAmount) || 0,
+          maxAmount: Number(w.maxAmount) || 0,
+          toggleInterval: Number(w.toggleInterval) || 100,
+          orderLimit: Number(w.orderLimit) || 12,
+          buyBankCode: w.buyBankCode || 'navi'
         };
-        return { blocked: false, uid: uid };
+        return { blocked: false, uid: u };
       });
-    }).catch(function(e){ return { blocked: true, reason: 'error', message: 'Error: '+e.message }; });
+    }).catch(function(u){ return { blocked: true, reason: 'error', message: 'Error: ' + u.message }; });
   }
-  
-  // ─── BLOCK WARNING ───
-  function showBlock(d){
-    var msg = d.message || 'ACCESS DENIED!';
-    var extra = '';
-    if(d.reason == 'id_mismatch') extra = ' Your UID:'+(d.yourUID||'?')+' Registered:'+(d.registeredUID||'?');
-    var w = document.createElement('div');
-    w.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:999999;display:flex;align-items:center;justify-content:center;padding:15px;font-family:Arial,sans-serif;"><div style="background:#1a0000;border:3px solid #ff0000;border-radius:16px;padding:25px;max-width:90vw;width:380px;text-align:center;color:#fff;"><div style="font-size:50px;">🚫</div><div style="font-size:24px;font-weight:bold;color:#ff0000;">BLOCKED</div><div style="font-size:16px;line-height:1.6;margin:20px 0;color:#ffcccc;">'+msg+extra+'<br><br>🔴 Account FROZEN</div><button id="arb-close-btn" style="background:#ff0000;color:#fff;border:none;padding:14px 40px;font-size:17px;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;">CLOSE</button></div></div>';
-    w.className = 'arb-block';
-    document.body.appendChild(w);
-    document.getElementById('arb-close-btn').onclick = function(){ w.remove(); };
+
+  function E(u){
+    var v = u.message || 'ACCESS DENIED!';
+    var w = '';
+    if(u.reason == 'id_mismatch'){
+      w = ' Your UID:' + (u.yourUID || '?') + ' Registered:' + (u.registeredUID || '?');
+    }
+    var x = document.createElement('div');
+    x.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:999999;display:flex;align-items:center;justify-content:center;padding:15px;box-sizing:border-box;font-family:Arial,sans-serif;"><div style="background:#1a0000;border:3px solid #ff0000;border-radius:16px;padding:25px;max-width:90vw;width:380px;text-align:center;color:#fff;"><div style="font-size:50px;margin-bottom:10px;">🚫</div><div style="font-size:24px;font-weight:bold;color:#ff0000;margin-bottom:15px;">BLOCKED</div><div style="font-size:16px;line-height:1.6;margin-bottom:20px;color:#ffcccc;">' + v + w + '<br><br>🔴 Account FROZEN<br>⛔ DO NOT RETRY</div><button id="arb-close-btn" style="background:#ff0000;color:#fff;border:none;padding:14px 40px;font-size:17px;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;">CLOSE</button></div></div>';
+    x.className = 'arb-block';
+    document.body.appendChild(x);
+    document.getElementById('arb-close-btn').onclick = function(){ x.remove(); };
   }
-  
-  // ─── ORDER GRAB ───
-  function grabOrder(o, a, p, t){
-    if(grabbedOrders.has(o)) return;
-    if(g || f) return;
-    g = true; f = true;
-    var tk = getToken();
-    if(!tk){ g = false; return; }
-    
-    var today = new Date().toISOString().split('T')[0];
-    
-    fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/beforeBuy',{
+
+  function F(G, H, I, J){
+    if(k.has(G)){ console.log('⏭️ Skip:', G); return; }
+    if(m || n) return;
+    m = true; n = true;
+    if(q) q.postMessage({ type: 'st', id: p });
+    var K = B();
+    if(!K){ m = false; return; }
+    fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/beforeBuy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
       credentials: 'include',
-      body: JSON.stringify({ amount: a, platformOrder: o, payType: p, orderType: t })
-    }).then(function(r){ return r.json(); }).then(function(d1){
-      if(d1.code != '1' && d1.code != 1 && !d1.success){
-        g = false;
-        if(d1.code == '1027' && d1.data && d1.data.cashierUrl) window.location.href = d1.data.cashierUrl;
+      body: JSON.stringify({ amount: H, platformOrder: G, payType: I, orderType: J })
+    }).then(function(L){ return L.json(); }).then(function(M){
+      if(M.code != '1' && M.code != 1 && !M.success){
+        m = false;
+        if(M.code == '1027' && M.data && M.data.cashierUrl) window.location.href = M.data.cashierUrl;
         return;
       }
-      return fetch('https://apiweb.arbpay.me/ar-wallet/kycCenter/getBanks/bankListAndBoundListForQuick',{
+      return fetch('https://apiweb.arbpay.me/ar-wallet/kycCenter/getBanks/bankListAndBoundListForQuick', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
         credentials: 'include',
-        body: JSON.stringify({ sourceType: 2, type: 1, platformOrder: o })
+        body: JSON.stringify({ sourceType: 2, type: 1, platformOrder: G })
       });
     }).then(function(){
-      var bankCode = config && config.buyBankCode ? config.buyBankCode : 'navi';
-      return fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/buy',{
+      var N = l && l.buyBankCode ? l.buyBankCode : 'navi';
+      return fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/buy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + K },
         credentials: 'include',
-        body: JSON.stringify({ amount: a, platformOrder: o, payType: p, orderType: t, buyBankCode: bankCode, buyerKycId: 5216324 })
+        body: JSON.stringify({ amount: H, platformOrder: G, payType: I, orderType: J, buyBankCode: N, buyerKycId: 5216324 })
       });
-    }).then(function(r){ return r.json(); }).then(function(d3){
-      if(d3.code == '1' || d3.code == 1 || d3.success){
-        grabbedOrders.add(o);
-        saveGrabbed(grabbedOrders);
-        
-        var d = document.createElement('div');
-        d.innerText = '🎯 ORDER GRABBED! Payment karo, phir refresh!';
-        d.style.cssText = 'position:fixed;top:15px;right:15px;background:#000;color:#0f0;padding:18px;z-index:999999;font-size:16px;border-radius:10px;font-weight:bold;border:2px solid #0f0;';
-        document.body.appendChild(d);
-        
-        // ─── LOG TO SHEET ───
-        fetchUID().then(function(uid){
-          if(uid){
-            fetch(SCRIPT_URL + '?action=logOrder&uid=' + uid + '&orderId=' + o + '&date=' + today + '&amount=' + a + '&status=8&utr=').catch(function(){});
-          }
-        });
-        
-        if(d3.data && (d3.data.cashierUrl || d3.data.payUrl)){
-          setTimeout(function(){ window.location.href = d3.data.cashierUrl || d3.data.payUrl; }, 2000);
+    }).then(function(L){ return L.json(); }).then(function(O){
+      if(O.code == '1' || O.code == 1 || O.success){
+        k.add(G);
+        i(k);
+        var P = document.createElement('div');
+        P.innerText = '🎯 ORDER GRABBED! Script STOPPED. Payment karo, phir refresh!';
+        P.style.cssText = 'position:fixed;top:15px;right:15px;background:#000;color:#0f0;padding:18px;z-index:999999;font-size:16px;border-radius:10px;font-weight:bold;max-width:85vw;word-wrap:break-word;border:2px solid #0f0;font-family:Arial,sans-serif;';
+        document.body.appendChild(P);
+        if(O.data && (O.data.cashierUrl || O.data.payUrl)){
+          setTimeout(function(){ window.location.href = O.data.cashierUrl || O.data.payUrl; }, 2000);
         }
       }
-    }).catch(function(){ g = false; f = false; });
+    }).catch(function(){ m = false; n = false; });
   }
-  
-  // ─── FETCH INTERCEPT ───
-  var of = window.fetch;
+
+  var Q = window.fetch;
   window.fetch = function(){
-    var args = arguments;
-    if(f) return of.apply(this, args);
-    var url = args[0] ? args[0].toString() : '';
-    return of.apply(this, args).then(function(r){
-      if(url.includes('buyList') && config){
-        var c = r.clone();
-        c.json().then(function(d){
-          if(d.code == '1' || d.code == 1){
-            var list = d.data && d.data.list ? d.data.list : [];
-            for(var i = 0; i < list.length; i++){
-              var item = list[i];
-              var orderId = item.platformOrder;
-              var status = item.orderStatus;
-              if(status == 'cancel' || status == 'cancelled' || status == '-1' || status == '0') continue;
-              if(grabbedOrders.has(orderId)) continue;
-              var minAmt = item.minimumAmount || 0;
-              var maxAmt = item.maximumAmount || 0;
-              if(minAmt >= config.minAmount && maxAmt <= config.maxAmount && orderId){
-                grabOrder(orderId, item.amount || minAmt, item.payType || '3', item.orderType || '1');
+    var R = arguments;
+    if(n) return Q.apply(this, R);
+    var S = R[0] ? R[0].toString() : '';
+    return Q.apply(this, R).then(function(T){
+      if(S.includes('buyList') && l){
+        var U = T.clone();
+        U.json().then(function(V){
+          if(V.code == '1' || V.code == 1){
+            var W = V.data && V.data.list ? V.data.list : [];
+            for(var X = 0; X < W.length; X++){
+              var Y = W[X];
+              var Z = Y.platformOrder;
+              var _ = Y.orderStatus;
+              if(_ == 'cancel' || _ == 'cancelled' || _ == '-1' || _ == '0'){ console.log('⏭️ Cancel:', Z); continue; }
+              if(k.has(Z)){ console.log('⏭️ Duplicate:', Z); continue; }
+              var $ = Y.minimumAmount || 0;
+              var aa = Y.maximumAmount || 0;
+              if($ >= l.minAmount && aa <= l.maxAmount && Z){
+                F(Z, Y.amount || $, Y.payType || '3', Y.orderType || '1');
               }
             }
           }
         }).catch(function(){});
       }
-      return r;
+      return T;
     });
   };
-  
-  // ─── START ───
-  function start(){
-    loadConfig().then(function(check){
-      if(check.blocked){ showBlock(check); return; }
-      
-      var interval = config.toggleInterval;
-      pt = setInterval(function(){
-        if(f){ clearInterval(pt); return; }
-        var tk = getToken();
-        if(!tk) return;
-        fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/buyList',{
+
+  function ab(){
+    t();
+    A();
+    D().then(function(ac){
+      if(ac.blocked){ E(ac); console.log('BLOCKED:', ac.reason); return; }
+      console.log('✅ Config loaded. UID:', ac.uid);
+      console.log('📦 Grabbed:', k.size);
+      var ad = l.toggleInterval;
+      o = setInterval(function(){
+        if(n){ clearInterval(o); console.log('STOPPED'); return; }
+        var ae = B();
+        if(!ae) return;
+        fetch('https://apiweb.arbpay.me/ar-wallet/buyCenter/buyList', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ae },
           credentials: 'include',
           body: JSON.stringify({ orderType: 1, pageNo: 1 })
         });
-      }, interval);
-      
-      var sd = document.createElement('div');
-      sd.id = 'arb-status';
-      sd.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#000;color:#0f0;padding:10px 14px;z-index:99999;font-family:monospace;border-radius:8px;font-size:13px;border:1px solid #0f0;';
-      document.body.appendChild(sd);
-      
+      }, ad);
+      var af = document.createElement('div');
+      af.id = 'arb-status';
+      af.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#000;color:#0f0;padding:10px 14px;z-index:99999;font-family:monospace;border-radius:8px;font-size:13px;max-width:85vw;word-wrap:break-word;border:1px solid #0f0;';
+      document.body.appendChild(af);
       setInterval(function(){
-        var el = document.getElementById('arb-status');
-        if(!el) return;
-        if(f){
-          el.innerHTML = '🛑 STOPPED<br>✅ Order Grabbed!';
-          el.style.background = '#f00';
-          el.style.color = '#fff';
-          el.style.borderColor = '#f00';
+        var ag = document.getElementById('arb-status');
+        if(!ag) return;
+        if(n){
+          ag.innerHTML = '🛑 STOPPED<br>✅ Order Grabbed!<br>Refresh for next';
+          ag.style.background = '#f00';
+          ag.style.color = '#fff';
+          ag.style.borderColor = '#f00';
         }else{
-          el.innerHTML = '🚀 RUNNING<br>💰 ₹'+config.minAmount+'-'+config.maxAmount+'<br>⏱️ '+interval+'ms<br>📦 Grabbed: '+grabbedOrders.size;
-          el.style.background = '#000';
-          el.style.color = '#0f0';
-          el.style.borderColor = '#0f0';
-          el.style.opacity = '0.8';
+          var ah = localStorage.getItem(d);
+          var ai = '--';
+          if(ah){
+            var aj = parseInt(ah) - Date.now();
+            ai = aj > 0 ? (aj / (60 * 60 * 1000)).toFixed(1) + 'h' : 'expired';
+          }
+          ag.innerHTML = '🚀 RUNNING<br>💰 ₹' + l.minAmount + '-' + l.maxAmount + '<br>⏱️ ' + ad + 'ms<br>📦 Grabbed: ' + k.size + '<br>⏳ Expiry: ' + ai;
+          ag.style.background = '#000';
+          ag.style.color = '#0f0';
+          ag.style.borderColor = '#0f0';
+          ag.style.opacity = '0.8';
         }
       }, 500);
     });
   }
-  
-  start();
-  console.log('🚀 ARB Grabber Loaded');
+
+  window.addEventListener('beforeunload', function(){
+    if(q) q.postMessage({ type: 'bye', id: p });
+  });
+
+  ab();
+  console.log('ARB v6 - No Duplicate');
 })();
